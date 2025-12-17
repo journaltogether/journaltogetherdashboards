@@ -2,34 +2,63 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>JournalTogether Dashboard</title>
+  <title>Journal Dashboard</title>
   <style>
     body {
       font-family: system-ui, sans-serif;
+      background: #f6f6f6;
       padding: 2rem;
-      background: #f7f7f7;
     }
     .card {
       background: white;
-      padding: 1.5rem;
+      padding: 2rem;
       border-radius: 8px;
       max-width: 600px;
+    }
+    input, button {
+      width: 100%;
+      padding: 0.6rem;
+      margin-top: 0.5rem;
+      font-size: 1rem;
+    }
+    pre {
+      background: #fafafa;
+      padding: 1rem;
+      white-space: pre-wrap;
+      border-radius: 6px;
     }
   </style>
 </head>
 <body>
- <div class="card">
-  <h1>Journal Dashboard</h1>
+  <div class="card">
+    <h1>Your Journal Dashboard</h1>
 
-  <p>
-    This is a private reflection space.  
-    Participants submit journal entries and receive a personal dashboard.
-  </p>
+    <p>Enter your private token to view your dashboard.</p>
 
-  <p>
-    Your words are not public.  
-    Your name is not required.
-  </p>
+    <label>Token</label>
+    <input id="token" placeholder="e.g. Dme3Rif4lCuepNAr" />
 
-  <a href="submit.html">Submit a journal entry</a>
- </div>
+    <button onclick="loadDashboard()">View Dashboard</button>
+
+    <div id="output"></div>
+  </div>
+
+  <script>
+    async function loadDashboard() {
+      const token = document.getElementById("token").value.trim();
+      const output = document.getElementById("output");
+      output.innerHTML = "Loading…";
+
+      try {
+        const res = await fetch(`/dashboards/${token}.json`);
+        if (!res.ok) throw new Error("Not found");
+
+        const data = await res.json();
+        output.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+      } catch {
+        output.innerHTML = "<p>Dashboard not found. Check your token.</p>";
+      }
+    }
+  </script>
+</body>
+</html>
