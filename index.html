@@ -2,63 +2,133 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Journal Dashboard</title>
+  <title>Journal Together — Dashboard Access</title>
+
+  <!-- Montserrat font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+
   <style>
     body {
-      font-family: system-ui, sans-serif;
-      background: #f6f6f6;
-      padding: 2rem;
+      font-family: 'Montserrat', sans-serif;
+      background: #f6f7f9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
     }
+
     .card {
       background: white;
-      padding: 2rem;
-      border-radius: 8px;
-      max-width: 600px;
+      padding: 2.5rem;
+      border-radius: 12px;
+      width: 360px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      text-align: center;
     }
-    input, button {
+
+    h1 {
+      font-size: 1.4rem;
+      margin-bottom: 0.5rem;
+    }
+
+    p {
+      font-size: 0.9rem;
+      color: #555;
+      margin-bottom: 1.5rem;
+    }
+
+    input {
       width: 100%;
-      padding: 0.6rem;
-      margin-top: 0.5rem;
+      padding: 0.75rem;
       font-size: 1rem;
-    }
-    pre {
-      background: #fafafa;
-      padding: 1rem;
-      white-space: pre-wrap;
       border-radius: 6px;
+      border: 1px solid #ccc;
+      margin-bottom: 1rem;
+    }
+
+    button {
+      width: 100%;
+      padding: 0.75rem;
+      font-size: 1rem;
+      font-weight: 600;
+      background: #4f46e5;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #4338ca;
+    }
+
+    .error {
+      margin-top: 1rem;
+      color: #c0392b;
+      font-size: 0.85rem;
     }
   </style>
 </head>
 <body>
+
   <div class="card">
     <h1>Your Journal Dashboard</h1>
+    <p>Enter your pseudonym exactly as you submitted it.</p>
 
-    <p>Enter your private token to view your dashboard.</p>
+    <input
+      type="text"
+      id="pseudonym"
+      placeholder="Your pseudonym"
+      autocomplete="off"
+    />
 
-    <label>Token</label>
-    <input id="token" placeholder="e.g. Dme3Rif4lCuepNAr" />
+    <button onclick="lookupDashboard()">View my dashboard</button>
 
-    <button onclick="loadDashboard()">View Dashboard</button>
-
-    <div id="output"></div>
+    <div class="error" id="error"></div>
   </div>
 
   <script>
-    async function loadDashboard() {
-      const token = document.getElementById("token").value.trim();
-      const output = document.getElementById("output");
-      output.innerHTML = "Loading…";
+    async function lookupDashboard() {
+      const pseudonym = document.getElementById("pseudonym").value.trim();
+      const errorDiv = document.getElementById("error");
+      errorDiv.textContent = "";
+
+      if (!pseudonym) {
+        errorDiv.textContent = "Please enter your pseudonym.";
+        return;
+      }
 
       try {
-        const res = await fetch(`/dashboards/${token}.json`);
-        if (!res.ok) throw new Error("Not found");
+        const response = await fetch(
+          "https://journaltogether.reflectconnectjournal.workers.dev/",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ pseudonym })
+          }
+        );
 
-        const data = await res.json();
-        output.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
-      } catch {
-        output.innerHTML = "<p>Dashboard not found. Check your token.</p>";
+        const data = await response.json();
+
+        if (!response.ok) {
+          errorDiv.textContent = data.error || "Something went wrong.";
+          return;
+        }
+
+        // Redirect to dashboard
+        window.location.href = `/dashboards/${data.token}.json`;
+
+      } catch (err) {
+        errorDiv.textContent = "Network error. Please try again.";
       }
     }
   </script>
+
 </body>
 </html>
+
