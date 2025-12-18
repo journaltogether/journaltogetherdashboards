@@ -2,12 +2,12 @@
 // Place in: /functions/_middleware.js
 
 export async function onRequest(context) {
-  const { request, env } = context;
+  const { request, env, next } = context;
   const url = new URL(request.url);
 
   // Only handle API routes
   if (!url.pathname.startsWith('/api/')) {
-    return context.next();
+    return next();
   }
 
   const corsHeaders = {
@@ -22,59 +22,76 @@ export async function onRequest(context) {
 
   // API: Look up token by pseudonym
   if (url.pathname === "/api/lookup") {
-    const pseudonym = url.searchParams.get("pseudonym")?.toLowerCase().trim();
-    
-    if (!pseudonym) {
+    try {
+      const pseudonym = url.searchParams.get("pseudonym")?.toLowerCase().trim();
+      
+      if (!pseudonym) {
+        return new Response(
+          JSON.stringify({ error: "Missing pseudonym" }), 
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      const token = await env.TOKENS.get(pseudonym);
+      
+      if (!token) {
+        return new Response(
+          JSON.stringify({ error: "Pseudonym not found. Check spelling or contact facilitator." }), 
+          { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
       return new Response(
-        JSON.stringify({ error: "Missing pseudonym" }), 
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        JSON.stringify({ 
+          token,
+          dashboardUrl: `/dashboard.html?token=${token}`
+        }), 
+        { headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    } catch (error) {
+      return new Response(
+        JSON.stringify({ error: `Server error: ${error.message}` }), 
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
-
-    const token = await env.TOKENS.get(pseudonym);
-    
-    if (!token) {
-      return new Response(
-        JSON.stringify({ error: "Pseudonym not found. Check spelling or contact facilitator." }), 
-        { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
-    return new Response(
-      JSON.stringify({ 
-        token,
-        dashboardUrl: `/dashboard.html?token=${token}`
-      }), 
-      { headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
   }
 
   // API: Get dashboard data
   if (url.pathname === "/api/dashboard") {
-    const token = url.searchParams.get("token");
-    
-    if (!token) {
+    try {
+      const token = url.searchParams.get("token");
+      
+      if (!token) {
+        return new Response(
+          JSON.stringify({ error: "Missing token" }), 
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      const dashboardKey = `dashboard-${token}`;
+      const dashboard = await env.DASHBOARDS.get(dashboardKey, "json");
+      
+      if (!dashboard) {
+        return new Response(
+          JSON.stringify({ error: "Dashboard not found. It may have been removed after the retention period." }), 
+          { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
       return new Response(
-        JSON.stringify({ error: "Missing token" }), 
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        JSON.stringify(dashboard), 
+        { headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    } catch (error) {
+      return new Response(
+        JSON.stringify({ error: `Server error: ${error.message}` }), 
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
-
-    const dashboardKey = `dashboard-${token}`;
-    const dashboard = await env.DASHBOARDS.get(dashboardKey, "json");
-    
-    if (!dashboard) {
-      return new Response(
-        JSON.stringify({ error: "Dashboard not found. It may have been removed after the retention period." }), 
-        { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
-    return new Response(
-      JSON.stringify(dashboard), 
-      { headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
   }
 
-  return new Response("Not found", { status: 404 });
+  return new Response(
+    JSON.stringify({ error: "Not found" }), 
+    { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
+  );
 }
