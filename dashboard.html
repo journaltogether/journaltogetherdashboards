@@ -105,6 +105,54 @@
       font-weight: 400;
     }
     
+    /* NEW: Social proof highlight box */
+    .highlight-box {
+      background: #FFF9F0;
+      border-left: 4px solid #B8976D;
+      padding: 1.5rem;
+      margin: 1rem 0;
+      border-radius: 4px;
+    }
+    
+    .highlight-box h3 {
+      color: #803900;
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      font-weight: 600;
+    }
+    
+    .highlight-box ul {
+      list-style: none;
+    }
+    
+    .highlight-box li {
+      padding-left: 0;
+      margin-bottom: 0.5rem;
+    }
+    
+    .highlight-box li:before {
+      content: "✦";
+      margin-right: 0.5rem;
+      color: #B8976D;
+    }
+    
+    /* NEW: Quote styling */
+    .quote-box {
+      background: #F8F4EF;
+      border-left: 3px solid #B8976D;
+      padding: 1.2rem;
+      margin: 1rem 0;
+      font-style: italic;
+      color: #5A4A3A;
+    }
+    
+    .quote-attribution {
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+      color: #8B7355;
+      font-style: normal;
+    }
+    
     .loading {
       text-align: center;
       padding: 4rem 2rem;
@@ -161,6 +209,26 @@
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
 
+    function renderSection(title, content, isArray = false) {
+      if (!content || (isArray && content.length === 0)) return '';
+      
+      if (isArray) {
+        return `
+          <div class="section">
+            <h2 class="section-title">${title}</h2>
+            <ul>${content.map(item => `<li>${item}</li>`).join('')}</ul>
+          </div>
+        `;
+      } else {
+        return `
+          <div class="section">
+            <h2 class="section-title">${title}</h2>
+            <p>${content}</p>
+          </div>
+        `;
+      }
+    }
+
     async function loadDashboard() {
       const output = document.getElementById("output");
 
@@ -178,48 +246,140 @@
 
         const data = await res.json();
 
-        output.innerHTML = `
-          <div class="section">
-            <h2 class="section-title">Major Themes</h2>
-            <ul>${data.major_themes.map(t => `<li>${t}</li>`).join("")}</ul>
-          </div>
+        let html = '';
 
-          <div class="section">
-            <h2 class="section-title">Emotional Trend</h2>
-            <p>${data.emotional_trend}</p>
-          </div>
+        // NEW: Social Proof Summary (if exists)
+        if (data.social_proof_summary && data.social_proof_summary.bullets) {
+          html += `
+            <div class="section">
+              <h2 class="section-title">${data.social_proof_summary.title}</h2>
+              <div class="highlight-box">
+                <ul>
+                  ${data.social_proof_summary.bullets.map(bullet => `<li>${bullet}</li>`).join('')}
+                </ul>
+              </div>
+            </div>
+          `;
+        }
 
-          <div class="section">
-            <h2 class="section-title">Noticeable Shifts</h2>
-            <p>${data.noticeable_shifts}</p>
-          </div>
+        // Milestone (if exists)
+        if (data.milestone) {
+          html += `
+            <div class="section">
+              <h2 class="section-title">Week ${data.milestone.week} Milestone</h2>
+              <div class="highlight-box">
+                <p>${data.milestone.message}</p>
+              </div>
+            </div>
+          `;
+        }
 
-          <div class="section">
-            <h2 class="section-title">Strengths</h2>
-            <ul>${data.strengths.map(t => `<li>${t}</li>`).join("")}</ul>
-          </div>
+        // Major Themes
+        html += renderSection('Major Themes', data.major_themes, true);
 
-          <div class="section">
-            <h2 class="section-title">Potential Blinders</h2>
-            <ul>${data.potential_blinders.map(t => `<li>${t}</li>`).join("")}</ul>
-          </div>
+        // Emotional Trend
+        html += renderSection('Emotional Trend', data.emotional_trend);
 
-          <div class="section">
-            <h2 class="section-title">Potential Growth Areas</h2>
-            <ul>${data.potential_growth_areas.map(t => `<li>${t}</li>`).join("")}</ul>
-          </div>
+        // Shifts over time / Noticeable Shifts
+        if (data.shifts_over_time) {
+          html += renderSection('Shifts Over Time', data.shifts_over_time);
+        } else if (data.noticeable_shifts) {
+          html += renderSection('Noticeable Shifts', data.noticeable_shifts);
+        }
 
-          <div class="section">
-            <h2 class="section-title">Next Steps</h2>
-            <ul>${data.next_steps.map(t => `<li>${t}</li>`).join("")}</ul>
-          </div>
+        // Strengths
+        html += renderSection('Strengths', data.strengths, true);
 
-          <div class="section">
-            <h2 class="section-title">Reflective Questions</h2>
-            <ul>${data.reflective_questions.map(t => `<li>${t}</li>`).join("")}</ul>
-          </div>
-        `;
+        // NEW: Peer Voices (if exists)
+        if (data.peer_voices && data.peer_voices.length > 0) {
+          html += `<div class="section">
+            <h2 class="section-title">Voices from Your Cohort</h2>
+            <p style="margin-bottom: 1rem;">Others in the group shared reflections that might resonate with your journey:</p>`;
+          
+          data.peer_voices.forEach(voice => {
+            html += `
+              <div class="quote-box">
+                "${voice.quote}"
+                <div class="quote-attribution">— On ${voice.theme}</div>
+                <p style="margin-top: 0.8rem; font-style: normal; font-size: 0.95rem;">${voice.why_this_resonates}</p>
+              </div>
+            `;
+          });
+          
+          html += `</div>`;
+        }
+
+        // NEW: Solidarity Moments (if exists)
+        if (data.solidarity_moments && data.solidarity_moments.length > 0) {
+          html += `<div class="section">
+            <h2 class="section-title">You're Not Alone</h2>`;
+          
+          data.solidarity_moments.forEach(moment => {
+            html += `
+              <div class="highlight-box">
+                <p><strong>You wrote:</strong> ${moment.your_experience}</p>
+                <p style="margin-top: 1rem;"><strong>${moment.how_many_others || 'Others'} also experiencing this:</strong></p>
+                <ul style="margin-top: 0.5rem;">
+                  ${moment.others_experiencing_this.map(quote => `<li style="font-style: italic;">"${quote}"</li>`).join('')}
+                </ul>
+                <p style="margin-top: 1rem;">${moment.what_this_means}</p>
+              </div>
+            `;
+          });
+          
+          html += `</div>`;
+        }
+
+        // Blind Spots / Potential Blinders
+        if (data.blind_spots) {
+          html += renderSection('Potential Blind Spots', data.blind_spots, true);
+        } else if (data.potential_blinders) {
+          html += renderSection('Potential Blinders', data.potential_blinders, true);
+        }
+
+        // Growth Areas / Potential Growth Areas
+        if (data.growth_areas) {
+          html += renderSection('Growth Areas', data.growth_areas, true);
+        } else if (data.potential_growth_areas) {
+          html += renderSection('Potential Growth Areas', data.potential_growth_areas, true);
+        }
+
+        // NEW: Questions Others Are Asking (if exists)
+        if (data.questions_others_are_asking && data.questions_others_are_asking.length > 0) {
+          html += `
+            <div class="section">
+              <h2 class="section-title">Questions the Group is Asking</h2>
+              <ul>${data.questions_others_are_asking.map(q => `<li>${q}</li>`).join('')}</ul>
+            </div>
+          `;
+        }
+
+        // Next Steps
+        html += renderSection('Next Steps', data.next_steps, true);
+
+        // Weekly Prompts (if exists)
+        if (data.weekly_prompts && data.weekly_prompts.length > 0) {
+          html += renderSection('Weekly Prompts', data.weekly_prompts, true);
+        }
+
+        // Reflective Questions
+        html += renderSection('Reflective Questions', data.reflective_questions, true);
+
+        // NEW: Witness Statement (if exists)
+        if (data.witness_statement) {
+          html += `
+            <div class="section">
+              <h2 class="section-title">A Note for You</h2>
+              <div class="highlight-box">
+                <p>${data.witness_statement}</p>
+              </div>
+            </div>
+          `;
+        }
+
+        output.innerHTML = html;
       } catch (error) {
+        console.error('Dashboard error:', error);
         output.innerHTML = "<p class='error'>Dashboard not found. Please check your token or contact the facilitator.</p>";
       }
     }
